@@ -1,0 +1,305 @@
+//<?php
+// Include database and property model
+require_once '../src/config/Database.php';
+require_once '../src/models/Property.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Collect form data
+    $name = $_POST['name'];
+    $location = $_POST['location'];
+    $type = $_POST['type'];
+    $price = $_POST['price'];
+    $description = $_POST['description'];
+
+    // Create Property model instance and save data
+    $propertyModel = new Property();
+    $propertyModel->create($name, $location, $type, $price, $description);
+
+    // Redirect to property list page
+    header('Location: index.php');
+    exit;
+}
+?>
+
+
+indexrapi.php
+<?php
+
+require_once '../src/config/Database.php';
+require_once '../src/models/Property.php';
+require_once '../src/models/Tenant.php';
+
+use Models\Property;
+use Models\Tenant;
+
+// Determine request type
+$requestMethod = $_SERVER['REQUEST_METHOD'];
+$endpoint = $_GET['endpoint'] ?? '';
+
+// Initialize classes
+$property = new Property();
+$tenant = new Tenant();
+
+header('Content-Type: application/json');
+
+switch ($endpoint) {
+    case 'properties':
+        if ($requestMethod === 'GET') {
+            echo json_encode($property->getAll());
+        } elseif ($requestMethod === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $result = $property->create(
+                $data['name'], $data['location'], $data['type'], $data['price'], $data['description']
+            );
+            echo json_encode(['success' => $result]);
+        }
+        break;
+
+    case 'tenants':
+        if ($requestMethod === 'GET') {
+            echo json_encode($tenant->getAll());
+        } elseif ($requestMethod === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $result = $tenant->create(
+                $data['name'], $data['email'], $data['contact'], $data['address'], $data['property_id']
+            );
+            echo json_encode(['success' => $result]);
+        }
+        break;
+
+    default:
+        echo json_encode(['error' => 'Invalid endpoint']);
+}
+?>
+
+
+
+{
+    "properties": {
+        "GET": {
+            "endpoint": "/index.php?endpoint=properties",
+            "method": "GET"
+        },
+        "POST": {
+            "endpoint": "/index.php?endpoint=properties",
+            "method": "POST",
+            "payload": {
+                "name": "Luxury Apartment",
+                "location": "New York",
+                "type": "Residential",
+                "price": 5000,
+                "description": "A luxury apartment with great amenities."
+            }
+        }
+    },
+    "tenants": {
+        "GET": {
+            "endpoint": "/index.php?endpoint=tenants",
+            "method": "GET"
+        },
+        "POST": {
+            "endpoint": "/index.php?endpoint=tenants",
+            "method": "POST",
+            "payload": {
+                "name": "John Doe",
+                "email": "john@example.com",
+                "contact": "123456789",
+                "address": "123 Main St",
+                "property_id": 1
+            }
+        }
+    }
+}
+
+
+
+
+require_once('../config/Database.php');
+require_once('../models/Property.php');
+require_once('../models/Tenant.php');
+require_once('../controllers/PropertyController.php');
+require_once('../controllers/TenantController.php');
+
+$propertyController = new PropertyController();
+$tenantController = new TenantController();
+
+// Routing logic based on the HTTP method
+$request_method = $_SERVER['REQUEST_METHOD'];
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+// Property routes
+if (strpos($uri, 'property') !== false) {
+    switch ($request_method) {
+        case 'GET':
+            if (isset($_GET['id'])) {
+                $propertyController->getProperty($_GET['id']);
+            } else {
+                $propertyController->getProperties();
+            }
+            break;
+        case 'POST':
+            $propertyController->addProperty();
+            break;
+        case 'PUT':
+            if (isset($_GET['id'])) {
+                $propertyController->updateProperty($_GET['id']);
+            }
+            break;
+        case 'DELETE':
+            if (isset($_GET['id'])) {
+                $propertyController->deleteProperty($_GET['id']);
+            }
+            break;
+        default:
+            header("HTTP/1.1 405 Method Not Allowed");
+            break;
+    }
+}
+
+// Tenant routes
+if (strpos($uri, 'tenant') !== false) {
+    switch ($request_method) {
+        case 'GET':
+            if (isset($_GET['id'])) {
+                $tenantController->getTenant($_GET['id']);
+            } else {
+                $tenantController->getTenants();
+            }
+            break;
+        case 'POST':
+            $tenantController->addTenant();
+            break;
+        case 'PUT':
+            if (isset($_GET['id'])) {
+                $tenantController->updateTenant($_GET['id']);
+            }
+            break;
+        case 'DELETE':
+            if (isset($_GET['id'])) {
+                $tenantController->deleteTenant($_GET['id']);
+            }
+            break;
+        default:
+            header("HTTP/1.1 405 Method Not Allowed");
+            break;
+    }
+}
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Management System</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+    <h1>Property Management System</h1>
+
+    <!-- Add Tenant Form -->
+    <form id="tenant-form">
+        <input type="text" id="tenant-name" placeholder="Tenant Name" required><br>
+        <input type="email" id="tenant-email" placeholder="Tenant Email" required><br>
+        <input type="text" id="tenant-contact" placeholder="Tenant Contact" required><br>
+        <textarea id="tenant-address" placeholder="Tenant Address" required></textarea><br>
+        <input type="number" id="property-id" placeholder="Property ID" required><br>
+        <button type="submit">Add Tenant</button>
+    </form>
+
+    <script src="assets/js/script.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<?php
+
+class Router {
+    private $routes = [];
+
+    public function add($method, $route, $callback) {
+        $this->routes[] = [
+            "method" => strtoupper($method),
+            "route" => $route,
+            "callback" => $callback
+        ];
+    }
+
+    public function dispatch($requestUri, $requestMethod) {
+        foreach ($this->routes as $route) {
+            if ($route['method'] === strtoupper($requestMethod) && $route['route'] === $requestUri) {
+                return call_user_func($route['callback']);
+            }
+        }
+
+        http_response_code(404);
+        echo json_encode(["message" => "Route not found"]);
+    }
+}
+?>
+
+
+
+<?php
+// Include the necessary files
+require_once '../src/config/Database.php';
+require_once '../src/models/Property.php';
+require_once '../src/models/Tenant.php';
+require_once '../src/models/Payment.php';
+require_once '../src/services/Auth.php';
+require_once '../src/services/Logger.php';
+
+// Use necessary classes
+use App\Models\Property;
+use App\Models\Tenant;
+use App\Models\Payment;
+use App\Services\Auth;
+use App\Services\Logger;
+
+// Example Usage:
+Logger::log("System Started");
+
+$propertyModel = new Property();
+$properties = $propertyModel->getAll();
+
+// Show properties
+foreach ($properties as $property) {
+    echo "Property: " . $property['name'] . "<br>";
+}
+
+// Simulate a user login
+if (Auth::login('admin', 'password')) {
+    echo "Logged in successfully.<br>";
+} else {
+    echo "Invalid login.<br>";
+}
+
+-- Rentals Table
+CREATE TABLE rentals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    property_id INT NOT NULL,
+    tenant_id INT NOT NULL,
+    rent_amount DECIMAL(10, 2) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE,
+    due_date DATE NOT NULL,
+    status ENUM('Active', 'Terminated', 'Pending') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+);
